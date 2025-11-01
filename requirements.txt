@@ -1,0 +1,6 @@
+scapy
+pandas
+psutil
+joblib
+flask
+
