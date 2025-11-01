@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Network Threat Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background:#fafafa; }
+        h1 { color:#d9534f; }
+        .stats { margin-bottom: 18px; }
+        .stats div { display:inline-block; margin-right:20px; font-weight:bold; }
+        table.data { border-collapse: collapse; width: 100%; margin-top: 10px; }
+        table.data th, table.data td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        table.data th { background-color: #f2f2f2; }
+        .unknown { color: #c0392b; font-weight: bold; } /* red for unknown/process missing */
+    </style>
+</head>
+<body>
+    <h1>AI Network Threat Dashboard</h1>
+
+    <div class="stats">
+        <div>Total Packets: {{ total }}</div>
+        <div>Malicious: {{ malicious }}</div>
+        <div>Normal: {{ normal }}</div>
+        <div>Local: {{ local_count }}</div>
+        <div>Other Devices: {{ other_count }}</div>
+    </div>
+
+    <canvas id="threatChart" width="700" height="250"></canvas>
+
+    <h2>Recent Packets</h2>
+    {% for table in tables %}
+        {{ table|safe }}
+    {% endfor %}
+
+    <script>
+        const ctx = document.getElementById('threatChart').getContext('2d');
+
+        // initial dataset (safe JSON rendering)
+        const initData = {
+            labels: ['Malicious', 'Normal', 'Local', 'Other Devices'],
+            datasets: [{
+                label: 'Counts',
+                data: [{{ malicious|tojson }}, {{ normal|tojson }}, {{ local_count|tojson }}, {{ other_count|tojson }}],
+                backgroundColor: ['#e74c3c', '#2ecc71', '#3498db', '#9b59b6']
+            }]
+        };
+
+        const config = {
+            type: 'bar',
+            data: initData,
+            options: { responsive: true, animation: false }
+        };
+
+        const threatChart = new Chart(ctx, config);
+
+        // Auto-refresh chart every 2s
+        setInterval(() => {
+            fetch('/chart-data')
+                .then(r => r.json())
+                .then(json => {
+                    threatChart.data.datasets[0].data = [json.malicious, json.normal, json.local, json.other];
+                    threatChart.update();
+                });
+        }, 2000);
+        // Function to refresh the table
+function refreshTable() {
+    fetch('/')
+    .then(response => response.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTable = doc.querySelector('table.data');
+        if(newTable) {
+            const oldTable = document.querySelector('table.data');
+            if(oldTable) oldTable.replaceWith(newTable);
+        }
+    });
+}
+
+// Refresh table every 5 seconds
+setInterval(refreshTable, 5000);
+    </script>
+    
+</body>
+</html>
